@@ -1,0 +1,63 @@
+﻿<Window x:Class="HospitalSystem.Views.AuditLogsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Журнал действий"
+        Height="620" Width="1000"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource CanvasBrush}">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Журнал действий" FontSize="22" FontWeight="Bold"/>
+                <TextBlock x:Name="SummaryText" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <Button Grid.Column="1" Content="Обновить" Style="{StaticResource InfoButtonStyle}" Width="140" Click="Refresh_Click"/>
+        </Grid>
+
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+            <DataGrid x:Name="AuditLogsGrid"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID" Binding="{Binding AuditID}" Width="50"/>
+                    <DataGridTextColumn Header="Пользователь" Binding="{Binding UserDisplay}" Width="200"/>
+                    <DataGridTextColumn Header="Дата и время" Binding="{Binding ActionDate, StringFormat=dd.MM.yyyy HH:mm:ss}" Width="150"/>
+                    <DataGridTextColumn Header="Действие" Binding="{Binding Action}" Width="220">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ActionCategory}" Value="Add">
+                                        <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding ActionCategory}" Value="Edit">
+                                        <Setter Property="Foreground" Value="{StaticResource InfoBrush}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding ActionCategory}" Value="Delete">
+                                        <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding ActionCategory}" Value="Warning">
+                                        <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Таблица" Binding="{Binding TableName}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </Grid>
+</Window>

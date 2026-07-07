@@ -1,0 +1,122 @@
+﻿<Window x:Class="HospitalSystem.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Главное меню"
+        Height="660" Width="960"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource CanvasBrush}">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="230"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ЛЕВОЕ МЕНЮ -->
+        <Grid Background="{StaticResource SidebarBrush}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="20,24,20,20">
+                <TextBlock Text="HOSPITAL SYSTEM" Foreground="White" FontSize="15" FontWeight="SemiBold"/>
+                <TextBlock Text="Куменская ЦРБ" Foreground="{StaticResource TextOnDarkMutedBrush}" FontSize="11" Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="1">
+                <Button x:Name="PatientsBtn" Content="Пациенты" Style="{StaticResource SidebarNavButtonStyle}" Click="Patients_Click"/>
+                <Button x:Name="DoctorsBtn" Content="Врачи" Style="{StaticResource SidebarNavButtonStyle}" Click="Doctors_Click"/>
+                <Button x:Name="AppointmentsBtn" Content="Записи" Style="{StaticResource SidebarNavButtonStyle}" Click="Appointments_Click"/>
+                <Button x:Name="SpecialtiesBtn" Content="Специальности" Style="{StaticResource SidebarNavButtonStyle}" Click="Specialties_Click"/>
+                <Button x:Name="ApiLogsBtn" Content="API Логи" Style="{StaticResource SidebarNavButtonStyle}" Click="ApiLogs_Click"/>
+                <Button x:Name="AuditLogsBtn" Content="Журнал действий" Style="{StaticResource SidebarNavButtonStyle}" Click="AuditLogs_Click"/>
+                <Button x:Name="ApiBtn" Content="API" Style="{StaticResource SidebarNavButtonStyle}" Click="Api_Click"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="2" Margin="16,10,16,20">
+                <Border Background="{StaticResource SidebarHoverBrush}" CornerRadius="10" Padding="12" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock x:Name="UserNameText" Foreground="White" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="UserRoleText" Foreground="{StaticResource TextOnDarkMutedBrush}" FontSize="11" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Button Content="Выйти" Style="{StaticResource SidebarNavButtonStyle}" Height="34" Click="Logout_Click"/>
+                <Button Content="Закрыть программу" Style="{StaticResource SidebarNavButtonStyle}" Height="34" Click="Exit_Click"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- ОСНОВНАЯ ОБЛАСТЬ -->
+        <Grid Grid.Column="1" Margin="28">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Приветствие -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,20">
+                <TextBlock Text="Добро пожаловать" FontSize="26" FontWeight="Bold"/>
+                <TextBlock Text="Медицинская информационная система КОГБУЗ «Куменская ЦРБ»"
+                           Margin="0,8,0,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="14"/>
+            </StackPanel>
+
+            <!-- Плитки со статистикой — теперь кликабельны -->
+            <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,20">
+                <Button x:Name="PatientsTile" Style="{StaticResource DashboardTileButtonStyle}" Margin="0,0,12,0" Click="Patients_Click">
+                    <StackPanel HorizontalAlignment="Left">
+                        <TextBlock x:Name="PatientsCountText" Text="0" FontSize="30" FontWeight="Bold" Foreground="{StaticResource AccentBrush}"/>
+                        <TextBlock Text="Пациентов в базе" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="DoctorsTile" Style="{StaticResource DashboardTileButtonStyle}" Margin="0,0,12,0" Click="Doctors_Click">
+                    <StackPanel HorizontalAlignment="Left">
+                        <TextBlock x:Name="DoctorsCountText" Text="0" FontSize="30" FontWeight="Bold" Foreground="{StaticResource InfoBrush}"/>
+                        <TextBlock Text="Врачей" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource DashboardTileButtonStyle}" Margin="0,0,12,0" Click="Appointments_Click">
+                    <StackPanel HorizontalAlignment="Left">
+                        <TextBlock x:Name="TodayCountText" Text="0" FontSize="30" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}"/>
+                        <TextBlock Text="Записей сегодня" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource DashboardTileButtonStyle}" Click="Appointments_Click">
+                    <StackPanel HorizontalAlignment="Left">
+                        <TextBlock x:Name="TotalAppointmentsCountText" Text="0" FontSize="30" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBlock Text="Записей всего" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Button>
+            </UniformGrid>
+
+            <!-- Ближайшие записи — строки тоже кликабельны -->
+            <Border Grid.Row="2" Style="{StaticResource CardStyle}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Ближайшие записи" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <TextBlock x:Name="NoUpcomingText" DockPanel.Dock="Top" Text="Записей нет" Foreground="{StaticResource TextSecondaryBrush}" FontSize="13" Visibility="Collapsed"/>
+                    <ItemsControl x:Name="UpcomingList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource DashboardRowButtonStyle}"
+                                        Tag="{Binding AppointmentID}"
+                                        Click="UpcomingRow_Click">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="140"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding WhenDisplay}" FontWeight="SemiBold"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding PatientName}"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding DoctorName}" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

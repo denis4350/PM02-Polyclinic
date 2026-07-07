@@ -1,0 +1,321 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Data.Entity;
+using System.Linq;
+using System.Windows;
+using System.Windows.Controls;
+using HospitalSystem.Helpers;
+
+namespace HospitalSystem.Views
+{
+    public partial class AppointmentsWindow : Window
+    {
+        private int? _editingAppointmentId = null;
+        private List<AppointmentRow> _allAppointments = new List<AppointmentRow>();
+
+        private static readonly int[] Minutes = { 0, 15, 30, 45 };
+        private static readonly string[] Statuses = { "Запланирован", "Завершён", "Отменён" };
+
+        private class PickerItem
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+
+            public override string ToString() => Name;
+        }
+
+        private class AppointmentRow
+        {
+            public int AppointmentID { get; set; }
+            public int PatientID { get; set; }
+            public int DoctorID { get; set; }
+            public string PatientName { get; set; }
+            public string DoctorName { get; set; }
+            public DateTime AppointmentDate { get; set; }
+            public TimeSpan AppointmentTime { get; set; }
+            public string TimeDisplay { get; set; }
+            public string Status { get; set; }
+            public string Comment { get; set; }
+        }
+
+        public AppointmentsWindow() : this(null) { }
+
+        public AppointmentsWindow(int? highlightAppointmentId)
+        {
+            InitializeComponent();
+
+            HourBox.ItemsSource = Enumerable.Range(8, 11).Select(h => h.ToString("D2")).ToList(); // 08..18
+            MinuteBox.ItemsSource = Minutes.Select(m => m.ToString("D2")).ToList();
+            StatusBox.ItemsSource = Statuses;
+
+            LoadCombos();
+            LoadData();
+            ResetForm();
+
+            if (highlightAppointmentId.HasValue)
+            {
+                HighlightAppointment(highlightAppointmentId.Value);
+            }
+        }
+
+        private void LoadCombos()
+        {
+            using (var db = new HospitalDBEntities())
+            {
+                PatientBox.ItemsSource = db.Patients.ToList()
+                    .Select(p => new PickerItem { Id = p.PatientID, Name = NameHelper.FullName(p.LastName, p.FirstName, p.MiddleName) })
+                    .OrderBy(p => p.Name)
+                    .ToList();
+
+                DoctorBox.ItemsSource = db.Doctors.ToList()
+                    .Select(d => new PickerItem { Id = d.DoctorID, Name = NameHelper.FullName(d.LastName, d.FirstName, d.MiddleName) })
+                    .OrderBy(d => d.Name)
+                    .ToList();
+            }
+        }
+
+        private void LoadData()
+        {
+            using (var db = new HospitalDBEntities())
+            {
+                _allAppointments = db.Appointments
+                    .Include(a => a.Patients)
+                    .Include(a => a.Doctors)
+                    .ToList()
+                    .Select(a => new AppointmentRow
+                    {
+                        AppointmentID = a.AppointmentID,
+                        PatientID = a.PatientID,
+                        DoctorID = a.DoctorID,
+                        PatientName = NameHelper.FullName(a.Patients.LastName, a.Patients.FirstName),
+                        DoctorName = NameHelper.FullName(a.Doctors.LastName, a.Doctors.FirstName),
+                        AppointmentDate = a.AppointmentDate,
+                        AppointmentTime = a.AppointmentTime,
+                        TimeDisplay = a.AppointmentTime.ToString(@"hh\:mm"),
+                        Status = a.Status,
+                        Comment = a.Comment
+                    })
+                    .OrderByDescending(a => a.AppointmentDate)
+                    .ThenBy(a => a.AppointmentTime)
+                    .ToList();
+            }
+
+            ApplyFilter();
+        }
+
+        // C#
+        private void ApplyFilter()
+        {
+            if (AppointmentsGrid == null || NoResultsText == null)
+                return;
+
+            DateTime today = DateTime.Today;
+
+            IEnumerable<AppointmentRow> source = _allAppointments ?? Enumerable.Empty<AppointmentRow>();
+            IEnumerable<AppointmentRow> filtered = source;
+
+            bool isToday = FilterToday?.IsChecked ?? false;
+            bool isUpcoming = FilterUpcoming?.IsChecked ?? false;
+            bool isPast = FilterPast?.IsChecked ?? false;
+
+            if (isToday)
+                filtered = source.Where(a => a.AppointmentDate.Date == today);
+            else if (isUpcoming)
+                filtered = source.Where(a => a.AppointmentDate.Date >= today);
+            else if (isPast)
+                filtered = source.Where(a => a.AppointmentDate.Date < today);
+
+            var result = filtered.ToList();
+
+            AppointmentsGrid.ItemsSource = result;
+            NoResultsText.Visibility = result.Any()
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+        }
+
+        private void Filter_Changed(object sender, RoutedEventArgs e)
+        {
+            ApplyFilter();
+        }
+
+        private TimeSpan GetSelectedTime()
+        {
+            int hour = int.Parse((string)HourBox.SelectedItem);
+            int minute = int.Parse((string)MinuteBox.SelectedItem);
+            return new TimeSpan(hour, minute, 0);
+        }
+
+        private void Save_Click(object sender, RoutedEventArgs e)
+        {
+            if (PatientBox.SelectedValue == null || DoctorBox.SelectedValue == null)
+            {
+                MessageBox.Show("Выберите пациента и врача");
+                return;
+            }
+
+            if (DateBox.SelectedDate == null)
+            {
+                MessageBox.Show("Выберите дату приёма");
+                return;
+            }
+
+            if (HourBox.SelectedItem == null || MinuteBox.SelectedItem == null)
+            {
+                MessageBox.Show("Выберите время приёма");
+                return;
+            }
+
+            int patientId = (int)PatientBox.SelectedValue;
+            int doctorId = (int)DoctorBox.SelectedValue;
+            DateTime date = DateBox.SelectedDate.Value;
+            TimeSpan time = GetSelectedTime();
+            string status = StatusBox.SelectedItem as string ?? Statuses[0];
+
+            using (var db = new HospitalDBEntities())
+            {
+                bool busy = db.Appointments.Any(a =>
+                    a.DoctorID == doctorId &&
+                    a.AppointmentDate == date &&
+                    a.AppointmentTime == time &&
+                    (!_editingAppointmentId.HasValue || a.AppointmentID != _editingAppointmentId.Value));
+
+                if (busy)
+                {
+                    MessageBox.Show("У этого врача уже есть запись на выбранные дату и время. Выберите другое время.", "Занято", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                try
+                {
+                    if (_editingAppointmentId.HasValue)
+                    {
+                        var appointment = db.Appointments.Find(_editingAppointmentId.Value);
+                        if (appointment != null)
+                        {
+                            appointment.PatientID = patientId;
+                            appointment.DoctorID = doctorId;
+                            appointment.AppointmentDate = date;
+                            appointment.AppointmentTime = time;
+                            appointment.Status = status;
+                            appointment.Comment = CommentBox.Text;
+                        }
+                    }
+                    else
+                    {
+                        db.Appointments.Add(new Appointments
+                        {
+                            PatientID = patientId,
+                            DoctorID = doctorId,
+                            AppointmentDate = date,
+                            AppointmentTime = time,
+                            Status = status,
+                            Comment = CommentBox.Text
+                        });
+                    }
+
+                    db.SaveChanges();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Не удалось сохранить запись: " + ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+            }
+
+            AuditHelper.Log(_editingAppointmentId.HasValue ? "Изменение записи на приём" : "Добавление записи на приём", "Appointments");
+            MessageBox.Show(_editingAppointmentId.HasValue ? "Изменения сохранены!" : "Запись создана!");
+            ResetForm();
+            LoadData();
+        }
+
+        private void Delete_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = AppointmentsGrid.SelectedItem as AppointmentRow;
+
+            if (selected == null)
+            {
+                MessageBox.Show("Выберите запись!");
+                return;
+            }
+
+            if (!DialogHelper.Confirm("Удалить эту запись на приём?"))
+                return;
+
+            try
+            {
+                using (var db = new HospitalDBEntities())
+                {
+                    var appointment = db.Appointments.Find(selected.AppointmentID);
+                    if (appointment != null)
+                    {
+                        db.Appointments.Remove(appointment);
+                        db.SaveChanges();
+                    }
+                }
+
+                AuditHelper.Log("Удаление записи на приём", "Appointments");
+                MessageBox.Show("Удалено!");
+                ResetForm();
+                LoadData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Не удалось удалить запись: " + ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void Refresh_Click(object sender, RoutedEventArgs e)
+        {
+            ResetForm();
+            LoadData();
+        }
+
+        private void NewAppointment_Click(object sender, RoutedEventArgs e)
+        {
+            ResetForm();
+        }
+
+        private void AppointmentsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var selected = AppointmentsGrid.SelectedItem as AppointmentRow;
+            if (selected == null) return;
+
+            _editingAppointmentId = selected.AppointmentID;
+            PatientBox.SelectedValue = selected.PatientID;
+            DoctorBox.SelectedValue = selected.DoctorID;
+            DateBox.SelectedDate = selected.AppointmentDate;
+            HourBox.SelectedItem = selected.AppointmentTime.Hours.ToString("D2");
+            MinuteBox.SelectedItem = (selected.AppointmentTime.Minutes - (selected.AppointmentTime.Minutes % 15)).ToString("D2");
+            StatusBox.SelectedItem = Statuses.FirstOrDefault(s =>
+                string.Equals(s?.Trim(), selected.Status?.Trim(), StringComparison.OrdinalIgnoreCase));
+            CommentBox.Text = selected.Comment;
+
+            SaveButton.Content = "Сохранить изменения";
+        }
+
+        private void HighlightAppointment(int appointmentId)
+        {
+            var match = _allAppointments.FirstOrDefault(a => a.AppointmentID == appointmentId);
+
+            if (match != null)
+            {
+                AppointmentsGrid.SelectedItem = match;
+                AppointmentsGrid.ScrollIntoView(match);
+            }
+        }
+
+        private void ResetForm()
+        {
+            _editingAppointmentId = null;
+            AppointmentsGrid.SelectedItem = null;
+            PatientBox.SelectedIndex = -1;
+            DoctorBox.SelectedIndex = -1;
+            DateBox.SelectedDate = null;
+            HourBox.SelectedIndex = 1;
+            MinuteBox.SelectedIndex = 0;
+            StatusBox.SelectedIndex = 0;
+            CommentBox.Text = "";
+            SaveButton.Content = "Добавить запись";
+        }
+    }
+}
